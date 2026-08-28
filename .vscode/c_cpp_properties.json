@@ -1,0 +1,34 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            // Two include mechanisms are in play and both are needed:
+            //
+            //  1. compileCommands supplies the per-package -isystem flags for
+            //     the nested include/<pkg>/<pkg>/ layout used by rclcpp and all
+            //     generated message packages (dynamixel_sdk_custom_interfaces).
+            //     Written by `ros-cc-merge` from colcon's per-package databases.
+            //
+            //  2. compilerPath is probed by cpptools for system include dirs.
+            //     Under direnv, NIX_CFLAGS_COMPILE makes the nix gcc wrapper
+            //     report <ros-env>/include, which is what resolves the flat
+            //     layout used by dynamixel_sdk and dynamixel_easy_sdk. Left as
+            //     bare "gcc" so PATH resolves it -- no /nix/store hash to rot.
+            //
+            // Nothing here comes from install/, which holds only the built
+            // executable, launch files, and env hooks -- no headers.
+            "compileCommands": [
+                "${workspaceFolder}/build/compile_commands.json"
+            ],
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "gcc",
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}
