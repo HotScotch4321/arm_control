@@ -1,6 +1,11 @@
 {
   description = "ROS 2 Jazzy robotic arm + MoveIt development environment";
 
+  nixConfig = {
+    extra-substituters = [ "https://ros.cachix.org" ];
+    extra-trusted-public-keys = [ "ros.cachix.org-1:dSyZxI8geDCJrwgvCOHDoAfOm5sV1wCPjBkKL+38Rvo=" ];
+  };
+
   inputs = {
     nix-ros-overlay.url = "github:lopsided98/nix-ros-overlay/master";
 
@@ -20,7 +25,14 @@
             ];
           };
 
-          ros = pkgs.rosPackages.jazzy;
+          # moveit_servo 2.12.4 singularity check indexes the SVD by the 6-D
+          # twist dimension; with <6 joints that reads out of bounds and
+          # emergency-stops every command. Unfixed upstream (moveit2 #3411).
+          ros = pkgs.rosPackages.jazzy.overrideScope (rosFinal: rosPrev: {
+            moveit-servo = rosPrev.moveit-servo.overrideAttrs (old: {
+              patches = (old.patches or [ ]) ++ [ ./nix/moveit-servo-underactuated-svd.patch ];
+            });
+          });
         in
         {
           # Exposed so .moveit-shell.nix can layer machine-local runtime
@@ -37,6 +49,8 @@
               pkgs.ninja
               pkgs.pkg-config
               pkgs.colcon
+              pkgs.lapack
+              pkgs.blas
 
               # ROS environment -- one buildEnv, shared list. See ros-packages.nix.
               (ros.buildEnv {

@@ -248,6 +248,40 @@ def generate_launch_description():
         parameters=[{"use_sim_time": use_sim_time}],
     )
 
+    wrist_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            "wrist_controller",
+            "--controller-manager",
+            "/controller_manager",
+            "--controller-manager-timeout",
+            "20",
+            "--service-call-timeout",
+            "10",
+            "--switch-timeout",
+            "10",
+        ],
+        parameters=[{"use_sim_time": use_sim_time}],
+    )
+
+    gripper_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=[
+            "gripper_controller",
+            "--controller-manager",
+            "/controller_manager",
+            "--controller-manager-timeout",
+            "20",
+            "--service-call-timeout",
+            "10",
+            "--switch-timeout",
+            "10",
+        ],
+        parameters=[{"use_sim_time": use_sim_time}],
+    )
+
     # 4. Move Group Node
     move_group_node = Node(
         package="moveit_ros_move_group",
@@ -322,11 +356,31 @@ def generate_launch_description():
         )
     )
 
-    start_moveit = RegisterEventHandler(
+    start_wrist_controller = RegisterEventHandler(
         OnProcessExit(
             target_action=servo_controller_spawner,
             on_exit=start_after_success(
                 "Servo trajectory controller",
+                [wrist_controller_spawner],
+            ),
+        )
+    )
+
+    start_gripper_controller = RegisterEventHandler(
+        OnProcessExit(
+            target_action=wrist_controller_spawner,
+            on_exit=start_after_success(
+                "Wrist trajectory controller",
+                [gripper_controller_spawner],
+            ),
+        )
+    )
+
+    start_moveit = RegisterEventHandler(
+        OnProcessExit(
+            target_action=gripper_controller_spawner,
+            on_exit=start_after_success(
+                "Gripper trajectory controller",
                 [
                     move_group_node,
                     servo_node,
@@ -346,6 +400,8 @@ def generate_launch_description():
         static_tf_node,
         joint_state_broadcaster_spawner,
         start_servo_controller,
+        start_wrist_controller,
+        start_gripper_controller,
         start_moveit,
     ]
 

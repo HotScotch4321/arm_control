@@ -206,6 +206,20 @@ def generate_launch_description():
         parameters=[{"use_sim_time": use_sim_time}],
     )
 
+    wrist_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["wrist_controller", "--controller-manager", "/controller_manager"],
+        parameters=[{"use_sim_time": use_sim_time}],
+    )
+
+    gripper_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["gripper_controller", "--controller-manager", "/controller_manager"],
+        parameters=[{"use_sim_time": use_sim_time}],
+    )
+
     # 4. Move Group Node
     move_group_node = Node(
         package="moveit_ros_move_group",
@@ -276,6 +290,8 @@ def generate_launch_description():
         ros2_control_node,
         joint_state_broadcaster_spawner,
         servo_controller_spawner,
+        wrist_controller_spawner,
+        gripper_controller_spawner,
         move_group_node,
         servo_node,
         rviz_node,

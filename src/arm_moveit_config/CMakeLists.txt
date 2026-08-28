@@ -21,4 +21,14 @@ install(
   DESTINATION lib/${PROJECT_NAME}
   RENAME keyboard_control)
 
+install(
+  PROGRAMS scripts/gripper_velocity_bridge.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME gripper_velocity_bridge)
+
+install(
+  PROGRAMS scripts/wrist_velocity_bridge.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME wrist_velocity_bridge)
+
 ament_package()

@@ -19,6 +19,8 @@ pkgs.mkShell {
     pkgs.ninja
     pkgs.pkg-config
     pkgs.colcon
+    pkgs.lapack
+    pkgs.blas
 
     (ros.buildEnv {
       paths = (import ./ros-packages.nix ros) ++ extraRosPackages;
