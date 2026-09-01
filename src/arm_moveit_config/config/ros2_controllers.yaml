@@ -21,7 +21,6 @@ servo_controller:
       - elbow
     command_interfaces:
       - position
-      - velocity
     state_interfaces:
       - position
       - velocity
@@ -35,7 +34,6 @@ wrist_controller:
       - wrist_roll
     command_interfaces:
       - position
-      - velocity
     state_interfaces:
       - position
       - velocity
@@ -47,7 +45,6 @@ gripper_controller:
       - left_finger_joint
     command_interfaces:
       - position
-      - velocity
     state_interfaces:
       - position
       - velocity

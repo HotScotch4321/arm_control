@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Keyboard teleop: arm via MoveIt Servo, gripper via its trajectory controller."""
+"""Keyboard teleop: arm via MoveIt Servo, wrist and gripper via their own
+trajectory controllers. Self-contained - no velocity bridge nodes required."""
 
 import os
 import select
@@ -15,9 +16,13 @@ from geometry_msgs.msg import TwistStamped
 from moveit_msgs.srv import ServoCommandType
 from rclpy.duration import Duration
 from rclpy.node import Node
+from sensor_msgs.msg import JointState
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 KEY_UP, KEY_DOWN, KEY_RIGHT, KEY_LEFT = '\x1b[A', '\x1b[B', '\x1b[C', '\x1b[D'
+
+WRIST_JOINTS = ['wrist_pitch', 'wrist_roll']
+WRIST_LIMITS = {'wrist_pitch': (-1.57, 1.57), 'wrist_roll': (-6.28318, 6.28318)}
 
 
 class KeyboardTeleop(Node):
@@ -29,21 +34,18 @@ class KeyboardTeleop(Node):
             TwistStamped, '/servo_node/delta_twist_cmds', 10)
         self.joint_pub = self.create_publisher(
             JointJog, '/servo_node/delta_joint_cmds', 10)
+        self.wrist_pub = self.create_publisher(
+            JointTrajectory, '/wrist_controller/joint_trajectory', 10)
         self.gripper_pub = self.create_publisher(
             JointTrajectory, '/gripper_controller/joint_trajectory', 10)
-        from std_msgs.msg import Float64
-        self.Float64 = Float64
-        self.wrist_bend_pub = self.create_publisher(
-            Float64, '/command/wrist_bend_velocity', 10)
-        self.wrist_twist_pub = self.create_publisher(
-            Float64, '/command/wrist_twist_velocity', 10)
+        self.create_subscription(JointState, '/joint_states', self.on_joint_states, 10)
         self.switch_client = self.create_client(
             ServoCommandType, '/servo_node/switch_command_type')
 
         self.mode = 'twist'
         self.frame_id = 'plate'
         self.selected_joint = 2
-        # 1-3 jog through servo; 4-5 go to the wrist bridge
+        # 1-3 jog through servo; 4-5 are outside its group and go direct.
         self.joint_names: List[str] = [
             'shoulder_pan', 'shoulder_tilt', 'elbow', 'wrist_pitch', 'wrist_roll']
 
@@ -53,15 +55,31 @@ class KeyboardTeleop(Node):
         self.gripper_step = 0.003
         self.gripper_target = 0.0
 
+        self.period = 0.02
+        self.wrist_target = None  # seeded from /joint_states
+        self.wrist_velocity = dict.fromkeys(WRIST_JOINTS, 0.0)
+        self.last_wrist_key_time = 0.0
+        self.warned_no_state = False
+
         self.active_twist = TwistStamped()
         self.active_joint = JointJog()
         self.last_key_time = 0.0
         self.key_timeout = 0.6  # must outlast terminal auto-repeat delay
 
-        self.create_timer(0.02, self.control_loop)
+        self.create_timer(self.period, self.control_loop)
         self.print_help()
 
+    def on_joint_states(self, msg: JointState) -> None:
+        if self.wrist_target is not None:
+            return
+        try:
+            self.wrist_target = {
+                j: msg.position[msg.name.index(j)] for j in WRIST_JOINTS}
+        except ValueError:
+            pass
+
     def control_loop(self) -> None:
+        self.publish_wrist()
         if time.time() - self.last_key_time > self.key_timeout:
             return
         now = self.get_clock().now().to_msg()
@@ -69,9 +87,30 @@ class KeyboardTeleop(Node):
             self.active_twist.header.stamp = now
             self.active_twist.header.frame_id = self.frame_id
             self.twist_pub.publish(self.active_twist)
-        else:
+        elif self.selected_joint < 3:
             self.active_joint.header.stamp = now
             self.joint_pub.publish(self.active_joint)
+
+    def publish_wrist(self) -> None:
+        if time.time() - self.last_wrist_key_time > self.key_timeout:
+            self.wrist_velocity = dict.fromkeys(WRIST_JOINTS, 0.0)
+        if not any(self.wrist_velocity.values()):
+            return
+        if self.wrist_target is None:
+            if not self.warned_no_state:
+                print("\r\n[Wrist: waiting for /joint_states]\r\n")
+                self.warned_no_state = True
+            return
+        for joint, velocity in self.wrist_velocity.items():
+            low, high = WRIST_LIMITS[joint]
+            moved = self.wrist_target[joint] + velocity * self.period
+            self.wrist_target[joint] = max(low, min(high, moved))
+        point = JointTrajectoryPoint(
+            positions=[self.wrist_target[j] for j in WRIST_JOINTS],
+            velocities=[0.0] * len(WRIST_JOINTS),
+            time_from_start=Duration(seconds=2 * self.period).to_msg())
+        self.wrist_pub.publish(
+            JointTrajectory(joint_names=WRIST_JOINTS, points=[point]))
 
     def update_twist(self, lx=0.0, ly=0.0, lz=0.0) -> None:
         self.active_twist.twist.linear.x = lx
@@ -81,8 +120,9 @@ class KeyboardTeleop(Node):
 
     def update_joint(self, velocity: float) -> None:
         if self.selected_joint >= 3:
-            pub = self.wrist_bend_pub if self.selected_joint == 3 else self.wrist_twist_pub
-            pub.publish(self.Float64(data=velocity))
+            self.wrist_velocity = dict.fromkeys(WRIST_JOINTS, 0.0)
+            self.wrist_velocity[self.joint_names[self.selected_joint]] = velocity
+            self.last_wrist_key_time = time.time()
             return
         self.active_joint.joint_names = [self.joint_names[self.selected_joint]]
         self.active_joint.velocities = [velocity]
@@ -128,7 +168,7 @@ class KeyboardTeleop(Node):
         if self.mode == 'twist':
             print(" Arrows: Z / Y axes   n / m: X axis")
         else:
-            print(" 1-5: Select Joint    Arrows: Jog +/-")
+            print(" 1-3: Servo Joints    4-5: Wrist    Arrows: Jog +/-")
         print(" [q] Quit\n")
 
     def process_key_event(self, key: str) -> None:

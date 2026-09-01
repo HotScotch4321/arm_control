@@ -41,11 +41,25 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "hardware_plugin",
-            default_value="mock_components/GenericSystem",
+            default_value="dynamixel_node/DynamixelSystem",
             description=(
                 "ros2_control hardware_interface plugin to load when "
-                "use_mock_hardware is false (e.g. my_servos/MyServoHardware)"
+                "use_mock_hardware is false"
             ),
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "port",
+            default_value="/dev/ttyUSB0",
+            description="U2D2 serial port used by the Dynamixel hardware plugin",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "baud_rate",
+            default_value="1000000",
+            description="Dynamixel bus baud rate",
         )
     )
     declared_arguments.append(
@@ -89,6 +103,12 @@ def generate_launch_description():
             " ",
             "hardware_plugin:=",
             hardware_plugin,
+            " ",
+            "port:=",
+            LaunchConfiguration("port"),
+            " ",
+            "baud_rate:=",
+            LaunchConfiguration("baud_rate"),
         ]
     )
     robot_description = {

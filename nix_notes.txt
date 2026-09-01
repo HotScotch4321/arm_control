@@ -1,0 +1,7 @@
+=== dynamixel includes ===
+/nix/store/nisklbd455i872bjlnc13w4lqq84kmdw-ros-env/include/dynamixel_sdk_custom_interfaces
+/nix/store/nisklbd455i872bjlnc13w4lqq84kmdw-ros-env/include/dynamixel_easy_sdk
+/nix/store/nisklbd455i872bjlnc13w4lqq84kmdw-ros-env/include/dynamixel_sdk
+=== easy sdk header ===
+/nix/store/nisklbd455i872bjlnc13w4lqq84kmdw-ros-env/include/dynamixel_easy_sdk
+=== SystemInterface API ===

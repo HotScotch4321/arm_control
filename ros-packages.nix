@@ -29,6 +29,7 @@ with ros; [
   hardware-interface
   joint-trajectory-controller
   joint-state-broadcaster
+  transmission-interface
 
   # MoveIt runtime pieces the launch files load by plugin name.
   moveit-kinematics
@@ -49,6 +50,7 @@ with ros; [
   geometry-msgs
   trajectory-msgs
   control-msgs
+  diagnostic-msgs
   std-srvs
   tf2
   tf2-ros
