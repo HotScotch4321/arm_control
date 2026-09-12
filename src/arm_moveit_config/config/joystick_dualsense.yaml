@@ -1,0 +1,34 @@
+# PlayStation DualSense profile (8 axes, 13 buttons) -- the pad the perseus-v3
+# rover uses. Select it with:
+#   ros2 launch arm_moveit_config joystick_teleop_sim.launch.py \
+#       controller_profile:=joystick_dualsense.yaml
+#
+# Axes match the Xbox layout; only the face buttons differ.
+#   Triangle             lock / unlock
+#   Square               Cartesian <-> shoulder-pivot mode
+#   L1 + left stick X    wrist roll
+#   R1 + right stick Y   wrist pitch
+#   L2 / R2              close / open gripper
+joystick_teleop:
+  ros__parameters:
+    axes:
+      left_x: 0
+      left_y: 1
+      left_trigger: 2     # L2
+      right_x: 3
+      right_y: 4
+      right_trigger: 5    # R2
+    buttons:
+      enable_toggle: 2    # Triangle
+      mode_toggle: 3      # Square
+      left_bumper: 4      # L1
+      right_bumper: 5     # R1
+
+    max_linear_speed: 0.20      # m/s
+    max_joint_speed: 0.75       # rad/s
+    max_gripper_speed: 0.02     # m/s per finger
+    gripper_open: 0.015         # m per finger, jaw gap is 2x
+    deadzone: 0.08
+    joy_timeout: 0.25           # s without /joy before re-locking
+    mode_switch_settle_time: 0.1
+    command_frame: plate

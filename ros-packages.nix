@@ -45,6 +45,9 @@ with ros; [
   dynamixel-sdk
   dynamixel-sdk-custom-interfaces
 
+  # Gamepad driver for the joystick teleop node.
+  joy
+
   # Common messages / utilities
   sensor-msgs
   geometry-msgs

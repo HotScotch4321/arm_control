@@ -8,7 +8,7 @@ project(
 find_package(ament_cmake REQUIRED)
 
 # This package has no compiled targets: it is MoveIt configuration, launch files
-# and a Python teleop script. Hardware drivers live outside it on purpose.
+# and Python teleop scripts. Hardware drivers live outside it on purpose.
 
 install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
 
@@ -20,5 +20,10 @@ install(
   PROGRAMS scripts/keyboard_control.py
   DESTINATION lib/${PROJECT_NAME}
   RENAME keyboard_control)
+
+install(
+  PROGRAMS scripts/joystick_control.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME joystick_control)
 
 ament_package()

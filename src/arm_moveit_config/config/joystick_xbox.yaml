@@ -1,0 +1,38 @@
+# Xbox controller profile (Linux xpad layout: 8 axes, 11 buttons).
+#
+# Verify against your own pad before trusting these indices -- wireless
+# adapters and third-party pads renumber things:
+#   ros2 run joy joy_node
+#   ros2 topic echo /joy --once
+#
+# Controls:
+#   Y                    lock / unlock
+#   X                    Cartesian <-> shoulder-pivot mode
+#   left stick  Y / X    end-effector Z / lateral
+#   right stick Y / X    end-effector X / lateral
+#   LB + left stick X    wrist roll
+#   RB + right stick Y   wrist pitch
+#   LT / RT              close / open gripper
+joystick_teleop:
+  ros__parameters:
+    axes:
+      left_x: 0
+      left_y: 1
+      left_trigger: 2
+      right_x: 3
+      right_y: 4
+      right_trigger: 5
+    buttons:
+      enable_toggle: 3    # Y
+      mode_toggle: 2      # X
+      left_bumper: 4      # LB
+      right_bumper: 5     # RB
+
+    max_linear_speed: 0.20      # m/s
+    max_joint_speed: 0.75       # rad/s
+    max_gripper_speed: 0.02     # m/s per finger
+    gripper_open: 0.015         # m per finger, jaw gap is 2x
+    deadzone: 0.08
+    joy_timeout: 0.25           # s without /joy before re-locking
+    mode_switch_settle_time: 0.1
+    command_frame: plate
