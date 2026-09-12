@@ -1,0 +1,10 @@
+<library path="dynamixel_servos">
+  <class name="dynamixel_node/DynamixelServos"
+         type="dynamixel_node::DynamixelServos"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      Dynamixel bus hardware_interface plugin. Placeholder: parses the
+      ros2_control joint configuration and echoes commands back as states.
+    </description>
+  </class>
+</library>
