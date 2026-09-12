@@ -4,21 +4,18 @@
   <name>dynamixel_node</name>
   <version>0.0.1</version>
   <description>
-    ros2_control hardware_interface plugin for Dynamixel MX-106 servos over a
-    U2D2 (protocol 2.0), built on the Dynamixel Easy SDK.
+    Placeholder ros2_control hardware_interface plugin for the Dynamixel servo bus.
   </description>
   <maintainer email="vumaximus30@gmail.com">maximus</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <depend>diagnostic_msgs</depend>
   <depend>dynamixel_sdk</depend>
   <depend>hardware_interface</depend>
   <depend>pluginlib</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_lifecycle</depend>
-  <depend>std_srvs</depend>
   <depend>transmission_interface</depend>
 
   <export>

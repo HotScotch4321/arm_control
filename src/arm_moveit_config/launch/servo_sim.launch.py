@@ -23,6 +23,12 @@ import os
 import yaml
 
 
+# Hardware switch: set USE_MOCK_HARDWARE to "false" to drive the real servos
+# through HARDWARE_PLUGIN. Both are overridable on the command line.
+USE_MOCK_HARDWARE = "true"
+HARDWARE_PLUGIN = "dynamixel_node/DynamixelServos"
+
+
 def start_after_success(stage_name, actions):
     """Start dependent actions only when a prerequisite exits successfully."""
 
@@ -60,8 +66,18 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "use_mock_hardware",
-            default_value="true",
+            default_value=USE_MOCK_HARDWARE,
             description="Start robot with mock hardware mirroring command to its states.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "hardware_plugin",
+            default_value=HARDWARE_PLUGIN,
+            description=(
+                "ros2_control hardware_interface plugin loaded when "
+                "use_mock_hardware is false"
+            ),
         )
     )
     declared_arguments.append(
@@ -88,6 +104,7 @@ def generate_launch_description():
 
     # Initialize Arguments
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
+    hardware_plugin = LaunchConfiguration("hardware_plugin")
     use_sim_time = LaunchConfiguration("use_sim_time")
     use_rviz = LaunchConfiguration("use_rviz")
     rmw_implementation = LaunchConfiguration("rmw_implementation")
@@ -102,6 +119,9 @@ def generate_launch_description():
             " ",
             "use_mock_hardware:=",
             use_mock_hardware,
+            " ",
+            "hardware_plugin:=",
+            hardware_plugin,
         ]
     )
     robot_description = {
