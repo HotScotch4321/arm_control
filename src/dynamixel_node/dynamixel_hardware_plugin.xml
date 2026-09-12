@@ -1,7 +1,0 @@
-<library path="dynamixel_system">
-  <class name="dynamixel_node/DynamixelSystem"
-         type="dynamixel_node::DynamixelSystem"
-         base_class_type="hardware_interface::SystemInterface">
-    <description>MX-106 servos on one U2D2 bus; joints whose servo is absent echo their command.</description>
-  </class>
-</library>
