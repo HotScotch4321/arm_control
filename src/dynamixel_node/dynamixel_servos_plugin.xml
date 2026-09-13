@@ -3,8 +3,9 @@
          type="dynamixel_node::DynamixelServos"
          base_class_type="hardware_interface::SystemInterface">
     <description>
-      Dynamixel bus hardware_interface plugin. Placeholder: parses the
-      ros2_control joint configuration and echoes commands back as states.
+      Dynamixel bus hardware_interface plugin. Reads servo positions and writes
+      goal positions via the dynamixel_easy_sdk, applying SimpleTransmission and
+      DifferentialTransmission transforms between joint space and actuator space.
     </description>
   </class>
 </library>

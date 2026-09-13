@@ -15,30 +15,32 @@ find_package(transmission_interface REQUIRED)
 
 install(DIRECTORY include/ DESTINATION include)
 
-# Uncomment once src/dynamixel_servos.cpp exists.
-#
-# add_library(dynamixel_servos SHARED src/dynamixel_servos.cpp)
-# target_compile_features(dynamixel_servos PUBLIC cxx_std_17)
-# target_include_directories(dynamixel_servos PUBLIC
-#   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-#   $<INSTALL_INTERFACE:include>)
-# target_link_libraries(dynamixel_servos PUBLIC
-#   dynamixel_sdk::dynamixel_sdk
-#   hardware_interface::hardware_interface
-#   pluginlib::pluginlib
-#   rclcpp::rclcpp
-#   rclcpp_lifecycle::rclcpp_lifecycle
-#   transmission_interface::transmission_interface)
-#
-# pluginlib_export_plugin_description_file(hardware_interface dynamixel_servos_plugin.xml)
-#
-# install(TARGETS dynamixel_servos
-#   EXPORT export_dynamixel_node
-#   ARCHIVE DESTINATION lib
-#   LIBRARY DESTINATION lib
-#   RUNTIME DESTINATION bin)
-#
-# ament_export_targets(export_dynamixel_node HAS_LIBRARY_TARGET)
+add_library(dynamixel_servos SHARED
+  src/dynamixel_servos.cpp
+  src/dynamixel_controller.cpp)
+target_compile_features(dynamixel_servos PUBLIC cxx_std_17)
+target_include_directories(dynamixel_servos PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_include_directories(dynamixel_servos PRIVATE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
+target_link_libraries(dynamixel_servos PUBLIC
+  dynamixel_sdk::dynamixel_sdk
+  hardware_interface::hardware_interface
+  pluginlib::pluginlib
+  rclcpp::rclcpp
+  rclcpp_lifecycle::rclcpp_lifecycle
+  transmission_interface::transmission_interface)
+
+pluginlib_export_plugin_description_file(hardware_interface dynamixel_servos_plugin.xml)
+
+install(TARGETS dynamixel_servos
+  EXPORT export_dynamixel_node
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin)
+
+ament_export_targets(export_dynamixel_node HAS_LIBRARY_TARGET)
 
 ament_export_include_directories(include)
 ament_export_dependencies(
