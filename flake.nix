@@ -11,9 +11,11 @@
 
     # Important: use the nixpkgs revision expected by nix-ros-overlay.
     nixpkgs.follows = "nix-ros-overlay/nixpkgs";
+
+    nixGL.url = "github:nix-community/nixGL";
   };
 
-  outputs = { self, nixpkgs, nix-ros-overlay }:
+  outputs = { self, nixpkgs, nix-ros-overlay, nixGL }:
     nix-ros-overlay.inputs.flake-utils.lib.eachDefaultSystem
       (system:
         let
@@ -43,6 +45,10 @@
             name = "arm-control-ros2";
 
             packages = [
+              # GL wrapper for RViz2 on non-NixOS (Intel GPU). Provides a Mesa
+              # build whose GLX visuals match the system X server.
+              nixGL.packages.${system}.nixGLIntel
+
               # General build/dev tools
               pkgs.git
               pkgs.cmake
@@ -61,6 +67,16 @@
             shellHook = ''
               echo "ROS 2 Jazzy robotic-arm environment"
               echo "ROS_DISTRO=$ROS_DISTRO"
+
+              # Fix GLX rendering for RViz2 on non-NixOS (Intel GPU).
+              # The nix-provided Qt/Ogre links against a Mesa whose GLX
+              # visuals don't match the system's X server. nixGLIntel
+              # provides a matching Mesa; ros2 launch inherits these vars.
+              if command -v nixGLIntel &>/dev/null; then
+                export LIBGL_DRIVERS_PATH="$(nixGLIntel printenv LIBGL_DRIVERS_PATH 2>/dev/null)"
+                export __EGL_VENDOR_LIBRARY_FILENAMES="$(nixGLIntel printenv __EGL_VENDOR_LIBRARY_FILENAMES 2>/dev/null)"
+                export LD_LIBRARY_PATH="$(nixGLIntel printenv LD_LIBRARY_PATH 2>/dev/null)"
+              fi
 
               # Automatically overlay our locally-built workspace.
               if [ -f "$PWD/install/local_setup.bash" ]; then
