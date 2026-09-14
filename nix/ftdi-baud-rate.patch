@@ -1,0 +1,29 @@
+diff --git a/src/dynamixel_sdk/port_handler_linux.cpp b/src/dynamixel_sdk/port_handler_linux.cpp
+index 5ba4091..bb98860 100644
+--- a/src/dynamixel_sdk/port_handler_linux.cpp
++++ b/src/dynamixel_sdk/port_handler_linux.cpp
+@@ -123,17 +123,13 @@ bool PortHandlerLinux::setBaudRate(const int baudrate)
+
+   closePort();
+
+-  if(baud <= 0)   // custom baudrate
+-  {
+-    setupPort(B38400);
+-    baudrate_ = baudrate;
+-    return setCustomBaudrate(baudrate);
+-  }
+-  else
+-  {
+-    baudrate_ = baudrate;
+-    return setupPort(baud);
+-  }
++  // Always use the custom baudrate path (BOTHER via TCSETS2) for
++  // precise baud rate control. Some FTDI drivers mishandle standard
++  // baud rate constants via TCSETS when baud_base is non-standard
++  // (e.g. 60MHz on FT232H), causing garbled communication.
++  setupPort(B38400);
++  baudrate_ = baudrate;
++  return setCustomBaudrate(baudrate);
+ }
+
+ int PortHandlerLinux::getBaudRate()

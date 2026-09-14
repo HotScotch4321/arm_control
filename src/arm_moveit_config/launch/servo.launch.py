@@ -50,6 +50,16 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "mock_servo_ids",
+            default_value="",
+            description=(
+                "Comma-separated servo IDs to simulate instead of "
+                "communicating with the physical bus (e.g. '4,5,6')"
+            ),
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "use_sim_time",
             default_value="false",
             description="Use simulation clock",
@@ -72,6 +82,7 @@ def generate_launch_description():
 
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
     hardware_plugin = LaunchConfiguration("hardware_plugin")
+    mock_servo_ids = LaunchConfiguration("mock_servo_ids")
     use_sim_time = LaunchConfiguration("use_sim_time")
     use_rviz = LaunchConfiguration("use_rviz")
     use_servo = LaunchConfiguration("use_servo")
@@ -89,6 +100,9 @@ def generate_launch_description():
             " ",
             "hardware_plugin:=",
             hardware_plugin,
+            " ",
+            "mock_servo_ids:=",
+            mock_servo_ids,
         ]
     )
     robot_description = {

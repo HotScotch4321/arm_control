@@ -34,6 +34,9 @@
             moveit-servo = rosPrev.moveit-servo.overrideAttrs (old: {
               patches = (old.patches or [ ]) ++ [ ./nix/moveit-servo-underactuated-svd.patch ];
             });
+            dynamixel-sdk = rosPrev.dynamixel-sdk.overrideAttrs (old: {
+              patches = (old.patches or [ ]) ++ [ ./nix/ftdi-baud-rate.patch ];
+            });
           });
         in
         {

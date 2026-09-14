@@ -70,6 +70,11 @@ dynamixel::Result<void, dynamixel::DxlError>
 DynamixelController::setMode(uint8_t id, Mode mode)
 {
   std::lock_guard<std::mutex> lock(bus_mutex_);
+  // Operating mode can only be changed when torque is disabled.
+  auto torque_off = servo(id).disableTorque();
+  if (!torque_off.isSuccess()) {
+    return torque_off.error();
+  }
   return servo(id).setOperatingMode(mode);
 }
 

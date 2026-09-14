@@ -1,7 +1,9 @@
 #ifndef DYNAMIXEL_NODE__DYNAMIXEL_SERVOS_HPP_
 #define DYNAMIXEL_NODE__DYNAMIXEL_SERVOS_HPP_
 
+#include <cstdint>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -71,17 +73,31 @@ private:
   hardware_interface::CallbackReturn parseJoints();
   hardware_interface::CallbackReturn parseTransmissions();
 
+  /// True if the servo with the given ID is mocked (not on the physical bus).
+  bool is_mocked(int servo_id) const;
+
   /// Apply forward transmission (actuator -> joint) for a single joint.
   double forwardTransform(const Joint & joint, double actuator_pos) const;
 
   /// Apply inverse transmission (joint -> actuator) for a single joint.
   double inverseTransform(const Joint & joint, double joint_pos) const;
 
+  /// Wrap an angle to [-pi, pi].
+  static double normalizeAngle(double angle);
+
+  /// Wrap an angle to [0, 2pi).
+  static double normalizeAnglePositive(double angle);
+
   std::unique_ptr<DynamixelController> controller_;
   std::vector<Joint> joints_;
   std::vector<DifferentialGroup> differentials_;
   std::string device_ = "/dev/ttyUSB0";
   int baud_rate_ = 57600;
+
+  /// Servo IDs to simulate instead of communicating with the physical bus.
+  std::set<int> mock_servo_ids_;
+  /// Simulated actuator positions for mocked servos (radians).
+  std::unordered_map<uint8_t, double> mock_positions_;
 };
 
 }  // namespace dynamixel_node

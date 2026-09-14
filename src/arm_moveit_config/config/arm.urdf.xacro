@@ -3,6 +3,7 @@
     <xacro:arg name="initial_positions_file" default="initial_positions.yaml" />
     <xacro:arg name="use_mock_hardware" default="true" />
     <xacro:arg name="hardware_plugin" default="dynamixel_node/DynamixelServos" />
+    <xacro:arg name="mock_servo_ids" default="" />
 
     <!-- Import arm urdf file -->
     <xacro:include filename="$(find arm_moveit_config)/src/moveit/arm.urdf" />
@@ -11,6 +12,6 @@
     <xacro:include filename="arm.ros2_control.xacro" />
 
 
-    <xacro:arm_ros2_control name="DynamixelServos" initial_positions_file="$(arg initial_positions_file)" use_mock_hardware="$(arg use_mock_hardware)" hardware_plugin="$(arg hardware_plugin)"/>
+    <xacro:arm_ros2_control name="DynamixelServos" initial_positions_file="$(arg initial_positions_file)" use_mock_hardware="$(arg use_mock_hardware)" hardware_plugin="$(arg hardware_plugin)" mock_servo_ids="$(arg mock_servo_ids)"/>
 
 </robot>

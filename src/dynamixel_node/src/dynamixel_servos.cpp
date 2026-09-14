@@ -1,7 +1,9 @@
 #include "dynamixel_node/dynamixel_servos.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
+#include <sstream>
 #include <string>
 
 #include "dynamixel_controller.hpp"
@@ -12,12 +14,22 @@ namespace dynamixel_node
 
 DynamixelServos::~DynamixelServos() = default;
 
+bool DynamixelServos::is_mocked(int servo_id) const
+{
+  return mock_servo_ids_.count(servo_id) > 0;
+}
+
 // ---------------------------------------------------------------------------
 // on_init: parse URDF hardware parameters, joints, and transmissions.
 // ---------------------------------------------------------------------------
 hardware_interface::CallbackReturn DynamixelServos::on_init(
-  const hardware_interface::HardwareComponentInterfaceParams & /*params*/)
+  const hardware_interface::HardwareComponentInterfaceParams & params)
 {
+  auto ret = hardware_interface::SystemInterface::on_init(params);
+  if (ret != hardware_interface::CallbackReturn::SUCCESS) {
+    return ret;
+  }
+
   // Hardware-level parameters (device, baud_rate).
   auto hw = info_.hardware_parameters.find("device");
   if (hw != info_.hardware_parameters.end()) {
@@ -28,7 +40,20 @@ hardware_interface::CallbackReturn DynamixelServos::on_init(
     baud_rate_ = std::atoi(baud->second.c_str());
   }
 
-  auto ret = parseJoints();
+  // Comma-separated list of servo IDs to simulate (e.g. "4,5,6").
+  auto mock = info_.hardware_parameters.find("mock_servo_ids");
+  if (mock != info_.hardware_parameters.end() && !mock->second.empty()) {
+    std::istringstream ss(mock->second);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+      mock_servo_ids_.insert(std::atoi(token.c_str()));
+    }
+    RCLCPP_INFO(
+      get_logger(), "Mocking %zu servo ID(s) (no bus communication)",
+      mock_servo_ids_.size());
+  }
+
+  ret = parseJoints();
   if (ret != hardware_interface::CallbackReturn::SUCCESS) {
     return ret;
   }
@@ -196,6 +221,26 @@ double DynamixelServos::inverseTransform(const Joint & joint, double joint_pos) 
     : joint_pos;
 }
 
+double DynamixelServos::normalizeAngle(double angle)
+{
+  constexpr double tau = 6.28318530717958647692;
+  angle = std::fmod(angle + M_PI, tau);
+  if (angle < 0.0) {
+    angle += tau;
+  }
+  return angle - M_PI;
+}
+
+double DynamixelServos::normalizeAnglePositive(double angle)
+{
+  constexpr double tau = 6.28318530717958647692;
+  angle = std::fmod(angle, tau);
+  if (angle < 0.0) {
+    angle += tau;
+  }
+  return angle;
+}
+
 // ---------------------------------------------------------------------------
 // on_configure: open the bus, scan, read initial positions.
 // ---------------------------------------------------------------------------
@@ -215,12 +260,33 @@ hardware_interface::CallbackReturn DynamixelServos::on_configure(
 
   const auto & found = scan_result.value();
   for (const auto & joint : joints_) {
+    if (is_mocked(joint.servo_id)) {
+      continue;
+    }
     if (std::find(found.begin(), found.end(),
         static_cast<uint8_t>(joint.servo_id)) == found.end())
     {
       RCLCPP_ERROR(
         get_logger(), "Servo ID %d (joint '%s') was not found on the bus",
         joint.servo_id, joint.name.c_str());
+      controller_.reset();
+      return hardware_interface::CallbackReturn::FAILURE;
+    }
+  }
+
+  // Ensure every real servo is in POSITION mode before reading positions or
+  // enabling torque. A servo left in VELOCITY/PWM from a prior session
+  // would ignore position commands.
+  for (const auto & joint : joints_) {
+    if (is_mocked(joint.servo_id)) {
+      continue;
+    }
+    auto mode_result = controller_->setMode(
+      static_cast<uint8_t>(joint.servo_id), DynamixelController::Mode::POSITION);
+    if (!mode_result.isSuccess()) {
+      RCLCPP_ERROR(
+        get_logger(), "Failed to set POSITION mode on servo %d: %s",
+        joint.servo_id, dynamixel::getErrorMessage(mode_result.error()).c_str());
       controller_.reset();
       return hardware_interface::CallbackReturn::FAILURE;
     }
@@ -235,11 +301,17 @@ hardware_interface::CallbackReturn DynamixelServos::on_configure(
     controller_.reset();
     return hardware_interface::CallbackReturn::FAILURE;
   }
-  const auto & positions = pos_result.value();
+  auto positions = pos_result.value();
+
+  // Initialize mocked servo positions to 0 and merge into the positions map.
+  for (int id : mock_servo_ids_) {
+    mock_positions_[static_cast<uint8_t>(id)] = 0.0;
+    positions[static_cast<uint8_t>(id)] = 0.0;
+  }
 
   for (const auto & diff : differentials_) {
-    double a1 = positions.at(static_cast<uint8_t>(diff.actuator1_servo_id));
-    double a2 = positions.at(static_cast<uint8_t>(diff.actuator2_servo_id));
+    double a1 = normalizeAngle(positions.at(static_cast<uint8_t>(diff.actuator1_servo_id)));
+    double a2 = normalizeAngle(positions.at(static_cast<uint8_t>(diff.actuator2_servo_id)));
     double j1 = (a1 / diff.ar[0] + a2 / diff.ar[1]) / (2.0 * diff.jr[0]) + diff.off[0];
     double j2 = (a1 / diff.ar[0] - a2 / diff.ar[1]) / (2.0 * diff.jr[1]) + diff.off[1];
     set_state(joints_[diff.joint1_index].name + "/position", j1);
@@ -252,7 +324,7 @@ hardware_interface::CallbackReturn DynamixelServos::on_configure(
     if (joint.in_differential) {
       continue;
     }
-    double actuator_pos = positions.at(static_cast<uint8_t>(joint.servo_id));
+    double actuator_pos = normalizeAngle(positions.at(static_cast<uint8_t>(joint.servo_id)));
     double joint_pos = forwardTransform(joint, actuator_pos);
     set_state(joint.name + "/position", joint_pos);
     set_state(joint.name + "/velocity", 0.0);
@@ -268,6 +340,9 @@ hardware_interface::CallbackReturn DynamixelServos::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
   for (const auto & joint : joints_) {
+    if (is_mocked(joint.servo_id)) {
+      continue;
+    }
     auto result = controller_->enableTorque(static_cast<uint8_t>(joint.servo_id));
     if (!result.isSuccess()) {
       RCLCPP_ERROR(
@@ -286,6 +361,9 @@ hardware_interface::CallbackReturn DynamixelServos::on_deactivate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
   for (const auto & joint : joints_) {
+    if (is_mocked(joint.servo_id)) {
+      continue;
+    }
     auto result = controller_->disableTorque(static_cast<uint8_t>(joint.servo_id));
     if (!result.isSuccess()) {
       RCLCPP_WARN(
@@ -309,12 +387,15 @@ hardware_interface::return_type DynamixelServos::read(
       dynamixel::getErrorMessage(pos_result.error()).c_str());
     return hardware_interface::return_type::OK;
   }
-  const auto & positions = pos_result.value();
+  auto positions = pos_result.value();
+  for (const auto & [id, pos] : mock_positions_) {
+    positions[id] = pos;
+  }
 
   // Differential joints.
   for (const auto & diff : differentials_) {
-    double a1 = positions.at(static_cast<uint8_t>(diff.actuator1_servo_id));
-    double a2 = positions.at(static_cast<uint8_t>(diff.actuator2_servo_id));
+    double a1 = normalizeAngle(positions.at(static_cast<uint8_t>(diff.actuator1_servo_id)));
+    double a2 = normalizeAngle(positions.at(static_cast<uint8_t>(diff.actuator2_servo_id)));
     double j1 = (a1 / diff.ar[0] + a2 / diff.ar[1]) / (2.0 * diff.jr[0]) + diff.off[0];
     double j2 = (a1 / diff.ar[0] - a2 / diff.ar[1]) / (2.0 * diff.jr[1]) + diff.off[1];
     set_state(joints_[diff.joint1_index].name + "/position", j1);
@@ -332,7 +413,7 @@ hardware_interface::return_type DynamixelServos::read(
     if (it == positions.end()) {
       continue;
     }
-    double joint_pos = forwardTransform(joint, it->second);
+    double joint_pos = forwardTransform(joint, normalizeAngle(it->second));
     set_state(joint.name + "/position", joint_pos);
     set_state(joint.name + "/velocity", 0.0);
   }
@@ -354,6 +435,9 @@ hardware_interface::return_type DynamixelServos::write(
       continue;
     }
     double cmd = get_command(joint.name + "/position");
+    if (!std::isfinite(cmd)) {
+      continue;
+    }
     double actuator_pos = inverseTransform(joint, cmd);
     targets[static_cast<uint8_t>(joint.servo_id)] = actuator_pos;
   }
@@ -362,10 +446,29 @@ hardware_interface::return_type DynamixelServos::write(
   for (const auto & diff : differentials_) {
     double j1 = get_command(joints_[diff.joint1_index].name + "/position");
     double j2 = get_command(joints_[diff.joint2_index].name + "/position");
+    if (!std::isfinite(j1) || !std::isfinite(j2)) {
+      continue;
+    }
     double a1 = ((j1 - diff.off[0]) * diff.jr[0] + (j2 - diff.off[1]) * diff.jr[1]) * diff.ar[0];
     double a2 = ((j1 - diff.off[0]) * diff.jr[0] - (j2 - diff.off[1]) * diff.jr[1]) * diff.ar[1];
     targets[static_cast<uint8_t>(diff.actuator1_servo_id)] = a1;
     targets[static_cast<uint8_t>(diff.actuator2_servo_id)] = a2;
+  }
+
+  // Normalize all targets to [0, 2pi) — the Dynamixel position range.
+  for (auto & [id, pos] : targets) {
+    pos = normalizeAnglePositive(pos);
+  }
+
+  // Update mocked servo positions (simulates instant tracking) and remove
+  // them from the targets map so they are not sent to the physical bus.
+  for (auto it = targets.begin(); it != targets.end(); ) {
+    if (mock_servo_ids_.count(static_cast<int>(it->first))) {
+      mock_positions_[it->first] = it->second;
+      it = targets.erase(it);
+    } else {
+      ++it;
+    }
   }
 
   if (!targets.empty()) {
